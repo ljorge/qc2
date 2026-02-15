@@ -1,0 +1,39 @@
+# Object files
+*.o
+
+# Binaries
+tests/bin/
+qc_test
+test_suite
+bell_state
+
+# Editor artifacts
+.vscode/
+*.swp
+*~
+
+# Brain/Artifacts (if needed, usually good to ignore local agent metadata if this is a shared repo)
+.gemini/
+
+# Libraries
+*.a
+
+# Documentation
+doc/
+html/
+
+# Coverage
+*.gcno
+*.gcda
+*.gcov
+coverage.info
+coverage_report/
+
+# OpenCL Cache
+qc_kernel_cache.bin
+
+# QML Datasets
+centroids.bin
+test_samples.bin
+curated.tar.gz*
+temp_dataset/

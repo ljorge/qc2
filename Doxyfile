@@ -1,0 +1,47 @@
+# Doxyfile for QC Library
+
+PROJECT_NAME           = "QC2"
+PROJECT_NUMBER         = "2.0"
+PROJECT_BRIEF          = "Quantum Computing Simulation Library"
+
+OUTPUT_DIRECTORY       = doc
+INPUT                  = .
+RECURSIVE              = YES
+FILE_PATTERNS          = *.c *.h
+
+# Extraction settings
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+
+# C-specific optimizations
+# C-specific optimizations
+OPTIMIZE_OUTPUT_FOR_C  = YES
+
+# Preprocessor Configuration
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = QC2_USE_OPENMP \
+                         QC2_USE_OPENCL \
+                         QC2_USE_TRIG_TABLES \
+                         QC2_USE_DOUBLE \
+                         CL_TARGET_OPENCL_VERSION=120
+
+# Output generation
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+
+# Visuals
+HAVE_DOT               = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+QUIET                  = YES
+WARNINGS               = YES
+
+# Offline / Local Viewing Optimization
+SEARCHENGINE           = NO
