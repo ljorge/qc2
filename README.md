@@ -168,13 +168,23 @@ For compatibility, lowercase aliases are provided:
 #define q_toffoli         q_ccnot
 ```
 
-### New Constants
+### Precision-Abstracted Constants
 
-```c
-#define Q_0_25  0.25   // Quarter
-#define Q_0_75  0.75   // Three-quarters
-#define Q_E     2.71828182845904523536   // Euler's number
-```
+To ensure cross-precision compatibility, use the `Q_*` macros for all mathematical values and functions:
+
+| Macro | Description |
+| :--- | :--- |
+| `Q_PI` | $\pi$ (Pi) |
+| `Q_PI_HALF` | $\pi/2$ |
+| `Q_PI_QUARTER` | $\pi/4$ |
+| `Q_E` | $e$ (Euler's number) |
+| `Q_I` | $i$ (Imaginary unit) |
+| `Q_0_0` .. `Q_4_0` | Literal constants (0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0) |
+| `Q_SIN(x)` / `Q_COS(x)` | Precision-aware sine and cosine |
+| `Q_SQRT(x)` | Precision-aware square root |
+| `Q_CEXP(x)` | Complex exponential |
+| `Q_FMT` | Format string for printf (e.g., `"f"`, `"lf"`, `"Lf"`) |
+| `Q_TEST_TOLERANCE` | Standard 0.01 tolerance for unit tests |
 
 ---
 
