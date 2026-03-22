@@ -424,7 +424,7 @@ For compatibility, lowercase aliases are provided:
 
 ```text
 │ 1  0     0        0    │
-│ 0  1     0        0    2│
+│ 0  1     0        0    │
 │ 0  0  (1+i)/2  (1-i)/2 │
 │ 0  0  (1-i)/2  (1+i)/2 │
 ```
@@ -433,8 +433,8 @@ For compatibility, lowercase aliases are provided:
 
 ```text
 │   cos(θ/2)        0            0       -i·sin(θ/2) │
-│      0         cos(θ/2)    i·sin(θ/2)       0      │
-│      0        i·sin(θ/2)    cos(θ/2)        0      │
+│      0         cos(θ/2)   -i·sin(θ/2)       0      │
+│      0        -i·sin(θ/2)   cos(θ/2)        0      │
 │ -i·sin(θ/2)       0            0         cos(θ/2)  │
 ```
 
@@ -459,10 +459,10 @@ For compatibility, lowercase aliases are provided:
 #### ECR
 
 ```text
-│ 0  0  0  1 │
-│ 0  0  1  0 │
-│ 0 -1  0  0 │
-│ 1  0  0  0 │
+│      0           0      1/√2   i/√2 │
+│      0           0      i/√2   1/√2 │
+│    1/√2      -i/√2         0      0 │
+│   -i/√2       1/√2         0      0 │
 ```
 
 ### Three-Qubit Gate Matrices
@@ -497,7 +497,7 @@ Intercambia los estados |111⟩ y |110⟩
 
 Intercambia los qubits objetivo cuando el control es 1
 
-#### CCH (Controlled-Hadamard)
+#### CCH (Controlled-Controlled-Hadamard)
 
 ```text
 │ 1  0  0  0  0  0    0    0   │
@@ -525,7 +525,7 @@ Intercambia los qubits objetivo cuando el control es 1
 
 Aplica fase -1 al estado |111⟩
 
-#### CCP (Controlled-Phase)
+#### CCP (Controlled-Controlled-Phase)
 
 ```text
 │ 1  0  0  0  0  0  0   0    │

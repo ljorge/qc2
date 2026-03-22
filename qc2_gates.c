@@ -489,7 +489,7 @@ int q_ch(QuantumRegister *reg, int control, int target) {
 }
 
 int q_cs(QuantumRegister *reg, int control, int target) {
-    return q_phase(reg, target) ? apply_controlled_gate(reg, control, target, Q_1_0, Q_0_0, Q_0_0, Q_I) : 0;
+    return apply_controlled_gate(reg, control, target, Q_1_0, Q_0_0, Q_0_0, Q_I);
 }
 
 int q_ct(QuantumRegister *reg, int control, int target) {
@@ -585,8 +585,8 @@ int q_rxx(QuantumRegister *reg, int qubit1, int qubit2, qfloat theta) {
 
     return apply_2q_unitary(reg, qubit1, qubit2,
                             cos_ht, Q_0_0, Q_0_0, -Q_I * sin_ht,
-                            Q_0_0, cos_ht, Q_I * sin_ht, Q_0_0,
-                            Q_0_0, Q_I * sin_ht, cos_ht, Q_0_0,
+                            Q_0_0, cos_ht, -Q_I * sin_ht, Q_0_0,
+                            Q_0_0, -Q_I * sin_ht, cos_ht, Q_0_0,
                             -Q_I * sin_ht, Q_0_0, Q_0_0, cos_ht);
 }
 
@@ -624,10 +624,15 @@ int q_rzz(QuantumRegister *reg, int qubit1, int qubit2, qfloat theta) {
 
 int q_ecr(QuantumRegister *reg, int qubit1, int qubit2) {
     if (!reg) return 0;
-    q_hadamard(reg, qubit2);
-    q_crz(reg, qubit1, qubit2, Q_PI_HALF);
-    q_hadamard(reg, qubit1);
-    return 1;
+    if (qubit1 == qubit2) return 1;
+    if (qubit1 >= reg->n_qubits || qubit2 >= reg->n_qubits) return 0;
+
+    qfloat s = Q_1_0 / Q_SQRT(Q_2_0);
+    return apply_2q_unitary(reg, qubit1, qubit2,
+                            Q_0_0, Q_0_0, s, Q_I * s,
+                            Q_0_0, Q_0_0, Q_I * s, s,
+                            s, -Q_I * s, Q_0_0, Q_0_0,
+                            -Q_I * s, s, Q_0_0, Q_0_0);
 }
 
 int q_fredkin(QuantumRegister *reg, int control, int target1, int target2) {
@@ -673,16 +678,10 @@ int q_fredkin(QuantumRegister *reg, int control, int target1, int target2) {
         size_t idx_base = t2 | fixed_bits;
         size_t idx_t1_0_t2_1 = idx_base | bit_t2;
         size_t idx_t1_1_t2_0 = idx_base | bit_t1;
-        size_t idx_t1_0_t2_0 = idx_base;
-        size_t idx_t1_1_t2_1 = idx_base | bit_t1 | bit_t2;
 
-        cfloat tmp0 = reg->amplitudes[idx_t1_0_t2_1];
-        cfloat tmp1 = reg->amplitudes[idx_t1_1_t2_0];
-
-        reg->amplitudes[idx_t1_0_t2_1] = reg->amplitudes[idx_t1_1_t2_1];
-        reg->amplitudes[idx_t1_1_t2_0] = reg->amplitudes[idx_t1_0_t2_0];
-        reg->amplitudes[idx_t1_1_t2_1] = tmp0;
-        reg->amplitudes[idx_t1_0_t2_0] = tmp1;
+        cfloat tmp = reg->amplitudes[idx_t1_0_t2_1];
+        reg->amplitudes[idx_t1_0_t2_1] = reg->amplitudes[idx_t1_1_t2_0];
+        reg->amplitudes[idx_t1_1_t2_0] = tmp;
     }
 
     return 1;

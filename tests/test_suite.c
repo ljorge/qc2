@@ -316,6 +316,8 @@ void test_controlled_gates_new(void) {
 
     // CS - Controlled Phase
     r = create_register(2);
+    // CS (Control=1) - verify S applied
+    r = create_register(2);
     q_pauli_x(r, 0);
     q_pauli_x(r, 1);
     q_cs(r, 0, 1);
@@ -323,6 +325,14 @@ void test_controlled_gates_new(void) {
     q_cs(r, 0, 1);
     q_cs(r, 0, 1);
     assert_prob(r, 1, 1, Q_1_0, "CS^4 = I");
+    destroy_register(r);
+
+    // CS (Control=0) - verify S is NOT applied
+    r = create_register(2);
+    q_hadamard(r, 1);
+    q_cs(r, 0, 1);
+    q_hadamard(r, 1);
+    assert_prob(r, 1, 0, Q_1_0, "CS control=0 leaves target unchanged");
     destroy_register(r);
 
     // CT - Controlled T
@@ -414,10 +424,15 @@ void test_two_qubit_rotation_gates(void) {
     assert_prob(r, 0, 0, Q_1_0, "RZZ(PI) on |00>");
     destroy_register(r);
 
-    // ECR - test
+    // ECR - test true mathematical Echoed Cross Resonance matrix
     r = create_register(2);
+    q_pauli_x(r, 0); // Start at |01> (q1=0, q2=1)
     q_ecr(r, 0, 1);
-    assert_prob(r, 0, 1, Q_0_5, "ECR on |00>");
+    // |01> -> applies column 1 of the ECR matrix
+    // |01> maps to -i/sqrt(2)|10> + 1/sqrt(2)|11>
+    // Thus Q1 is perfectly flipped to 1, and Q0 shifts into an equal superposition.
+    assert_prob(r, 1, 1, Q_1_0, "ECR on |01> flips Q1 completely to 1");
+    assert_prob(r, 0, 1, Q_0_5, "ECR on |01> superposes Q0");
     destroy_register(r);
 }
 
@@ -429,6 +444,15 @@ void test_three_qubit_gates_new(void) {
     q_pauli_x(r, 2);
     q_fredkin(r, 0, 1, 2);
     assert_prob(r, 2, 1, Q_1_0, "Fredkin control=0");
+    destroy_register(r);
+
+    // Fredkin (CSWAP) - test with control=1 (swaps 01 to 10)
+    r = create_register(3);
+    q_pauli_x(r, 0); // control
+    q_pauli_x(r, 2); // target2 = 1, target1 = 0
+    q_fredkin(r, 0, 1, 2);
+    assert_prob(r, 1, 1, Q_1_0, "Fredkin control=1 swaps |01> to |10>");
+    assert_prob(r, 2, 0, Q_1_0, "Fredkin control=1 swaps |01> to |10>");
     destroy_register(r);
 
     // CCZ - verify phase flip on |111>

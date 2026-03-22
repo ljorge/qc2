@@ -815,8 +815,8 @@ int q_sqrt_cnot(QuantumRegister *reg, int control, int target);
  * Implements exp(-i*theta/2 * X⊗X).
  * Matrix:
  * │   cos(θ/2)        0            0       -i·sin(θ/2) │
- * │      0         cos(θ/2)    i·sin(θ/2)       0      │
- * │      0        i·sin(θ/2)    cos(θ/2)        0      │
+ * │      0         cos(θ/2)   -i·sin(θ/2)       0      │
+ * │      0        -i·sin(θ/2)   cos(θ/2)        0      │
  * │ -i·sin(θ/2)       0            0         cos(θ/2)  │
  *
  * @param reg Pointer to the QuantumRegister.
@@ -868,10 +868,10 @@ int q_rzz(QuantumRegister *reg, int qubit1, int qubit2, qfloat theta);
  *
  * Equivalent to RZX(π/2) up to single-qubit rotations.
  * Matrix:
- * │ 0  0  0  1 │
- * │ 0  0  1  0 │
- * │ 0 -1  0  0 │
- * │ 1  0  0  0 │
+ * │      0           0      1/√2   i/√2 │
+ * │      0           0      i/√2   1/√2 │
+ * │    1/√2      -i/√2         0      0 │
+ * │   -i/√2       1/√2         0      0 │
  *
  * @param reg Pointer to the QuantumRegister.
  * @param qubit1 Index of the first qubit.
