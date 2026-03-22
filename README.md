@@ -20,7 +20,7 @@ This project is licensed under the **GNU LGPL v2.1** (Lesser General Public Lice
 
 **Development Note:**
 
-This project is a derivative work created and modified using **Gemini AI** under human supervision. Community feedback, improvements, and bug fixes are highly encouraged.
+This project is a derivative work created and modified using **Antigravity/Gemini AI** and **Opencode/BigPickle** under human supervision. Community feedback, improvements, and bug fixes are highly encouraged.
 
 **Key Modifications:**
 
