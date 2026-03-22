@@ -255,6 +255,7 @@ void print_state(QuantumRegister *reg) {
 }
 
 // -- Measurement --
+
 qfloat get_prob_one(const QuantumRegister *reg, int target_qubit) {
     #if defined(QC2_USE_OPENCL)
     sync_to_host((QuantumRegister*)reg);
@@ -312,4 +313,141 @@ int measure(QuantumRegister *reg, int target_qubit) {
     #endif
 
     return result;
+}
+
+int* q_measure_multiple(QuantumRegister *reg, const int *qubits, int num_qubits) {
+    if (!reg || !qubits || num_qubits < 1) return NULL;
+
+    int *results = (int*)malloc((size_t)num_qubits * sizeof(int));
+    if (!results) return NULL;
+
+    for (int i = 0; i < num_qubits; i++) {
+        if (qubits[i] < 0 || qubits[i] >= reg->n_qubits) {
+            free(results);
+            return NULL;
+        }
+        results[i] = measure(reg, qubits[i]);
+    }
+
+    return results;
+}
+
+qfloat* q_measure_partial(const QuantumRegister *reg, const int *qubits, int num_qubits) {
+    if (!reg || !qubits || num_qubits < 1) return NULL;
+
+    qfloat *probs = (qfloat*)malloc((size_t)num_qubits * sizeof(qfloat));
+    if (!probs) return NULL;
+
+    for (int i = 0; i < num_qubits; i++) {
+        if (qubits[i] < 0 || qubits[i] >= reg->n_qubits) {
+            free(probs);
+            return NULL;
+        }
+        probs[i] = get_prob_zero(reg, qubits[i]);
+    }
+
+    return probs;
+}
+
+int q_measure_basis(QuantumRegister *reg, int qubit, int basis) {
+    if (!reg) return 0;
+    if (qubit < 0 || qubit >= reg->n_qubits) return 0;
+
+    #if defined(QC2_USE_OPENCL)
+    sync_to_host(reg);
+    #endif
+
+    if (basis == 2) {
+        return measure(reg, qubit);
+    }
+
+    if (basis == 0) {
+        q_hadamard(reg, qubit);
+    } else if (basis == 1) {
+        q_p_dagger(reg, qubit);
+        q_hadamard(reg, qubit);
+        q_p(reg, qubit);
+    }
+
+    return measure(reg, qubit);
+}
+
+int q_normalize(QuantumRegister *reg) {
+    if (!reg) return 0;
+
+    qfloat total_prob = Q_0_0;
+    for (size_t i = 0; i < reg->dim; i++) {
+        total_prob += Q_CABS(reg->amplitudes[i]) * Q_CABS(reg->amplitudes[i]);
+    }
+
+    if (total_prob < Q_TEST_TOLERANCE) return 0;
+    if (Q_ABS(total_prob - Q_1_0) < Q_TEST_TOLERANCE) return 1;
+
+    qfloat inv_sqrt = Q_1_0 / Q_SQRT(total_prob);
+
+    #if defined(QC2_USE_OPENMP)
+    #pragma omp parallel for
+    #endif
+    for (size_t i = 0; i < reg->dim; i++) {
+        reg->amplitudes[i] *= inv_sqrt;
+    }
+
+    #if defined(QC2_USE_OPENCL)
+    sync_to_device(reg);
+    #endif
+
+    return 1;
+}
+
+qfloat q_fidelity(const QuantumRegister *reg1, const QuantumRegister *reg2) {
+    if (!reg1 || !reg2) return Q_0_0;
+    if (reg1->dim != reg2->dim) return Q_0_0;
+
+    qfloat overlap = Q_0_0;
+    for (size_t i = 0; i < reg1->dim; i++) {
+        cfloat amp1 = reg1->amplitudes[i];
+        cfloat amp2 = reg2->amplitudes[i];
+        overlap += Q_CABS(amp1) * Q_CABS(amp2);
+    }
+
+    return overlap * overlap;
+}
+
+qfloat* q_partial_trace(const QuantumRegister *reg, const int *qubits_to_trace, 
+                        int num_qubits, const int *remaining_qubits, int num_remaining) {
+    if (!reg || !qubits_to_trace || !remaining_qubits || num_qubits < 1 || num_remaining < 1) {
+        return NULL;
+    }
+
+    size_t reduced_dim = 1ULL << num_remaining;
+    qfloat *probs = (qfloat*)calloc(reduced_dim, sizeof(qfloat));
+    if (!probs) return NULL;
+
+    size_t full_dim = reg->dim;
+
+    for (size_t i = 0; i < full_dim; i++) {
+        size_t reduced_idx = 0;
+        for (int j = 0; j < num_remaining; j++) {
+            size_t bit = 1ULL << remaining_qubits[j];
+            if ((i & bit) != 0) {
+                reduced_idx |= (1ULL << j);
+            }
+        }
+
+        qfloat prob = Q_CABS(reg->amplitudes[i]) * Q_CABS(reg->amplitudes[i]);
+        probs[reduced_idx] += prob;
+    }
+
+    return probs;
+}
+
+QuantumRegister* q_copy(const QuantumRegister *reg) {
+    if (!reg) return NULL;
+
+    QuantumRegister *new_reg = create_register(reg->n_qubits);
+    if (!new_reg) return NULL;
+
+    memcpy(new_reg->amplitudes, reg->amplitudes, reg->dim * sizeof(cfloat));
+
+    return new_reg;
 }

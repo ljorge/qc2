@@ -7,40 +7,22 @@
 #ifdef QC2_DEBUG
 static int is_unitary(cfloat u00, cfloat u01, cfloat u10, cfloat u11) {
     // Check U * U^dagger = I
-    // Row 0 . Row 0* = |u00|^2 + |u01|^2 = 1
-    // Row 1 . Row 1* = |u10|^2 + |u11|^2 = 1
-    // Row 0 . Row 1* = u00*conj(u10) + u01*conj(u11) = 0
-
     qfloat mag0 = Q_CABS(u00)*Q_CABS(u00) + Q_CABS(u01)*Q_CABS(u01);
     qfloat mag1 = Q_CABS(u10)*Q_CABS(u10) + Q_CABS(u11)*Q_CABS(u11);
-
-    // Check orthogonality
-    // cfloat dot = ... (Logic currently commented out/unused)
-    // Correct: u00 * conj(u10) + u01 * conj(u11)
-
-    // cfloat conj_u10 = Q_CREAL(u10) - I * Q_CIMAG(u10);
-    // cfloat conj_u11 = Q_CREAL(u11) - I * Q_CIMAG(u11);
-    // Let's use simpler check: magnitude check is strong enough for most errors.
-    // orthogonality is also important.
-
-    // Using standard conj() if available or manual. internal.h includes complex.h
-    // complex.h has conj() but our cfloat might be float _Complex or double _Complex.
-    // The macro Q_CIMAG etc are defined.
-
-    // Let's just check norms for now to avoid complex conjugation header issues if they arise.
-    // Actually the user requirements asked for "matrix unitarity".
-    // I can implement a Helper check:
 
     if (Q_ABS(mag0 - Q_1_0) > Q_TEST_TOLERANCE) return 0;
     if (Q_ABS(mag1 - Q_1_0) > Q_TEST_TOLERANCE) return 0;
 
     // Check orthogonality: row0 . row1* = 0
-    // (a + bi)(c - di) + (e + fi)(g - hi) = ...
-    // Let's rely on norms first, implementing generic conj might be verbose without conj/conjf/conjl macros.
-    // qc.h includes complex.h so 'conj', 'conjf', 'conjl' should be there.
+    // row0 = (u00, u01), row1 = (u10, u11)
+    // dot = u00 * conj(u10) + u01 * conj(u11)
+    qfloat dot_real = Q_CREAL(u00) * Q_CREAL(u10) + Q_CIMAG(u00) * Q_CIMAG(u10) 
+                    + Q_CREAL(u01) * Q_CREAL(u11) + Q_CIMAG(u01) * Q_CIMAG(u11);
+    qfloat dot_imag = -Q_CREAL(u00) * Q_CIMAG(u10) + Q_CIMAG(u00) * Q_CREAL(u10) 
+                    - Q_CREAL(u01) * Q_CIMAG(u11) + Q_CIMAG(u01) * Q_CREAL(u11);
 
-    // Wait, qc.h defines qfloat/cfloat but macros like Q_SIN not Q_CONJ.
-    // I will add a local simple check.
+    if (Q_ABS(dot_real) > Q_TEST_TOLERANCE) return 0;
+    if (Q_ABS(dot_imag) > Q_TEST_TOLERANCE) return 0;
 
     return 1;
 }
@@ -93,6 +75,67 @@ static int apply_1q_gate(QuantumRegister *reg, int target_qubit, cfloat u00, cfl
         reg->amplitudes[idx0] = u00 * a + u01 * b;
         reg->amplitudes[idx1] = u10 * a + u11 * b;
     }
+    return 1;
+}
+
+static int apply_2q_unitary(QuantumRegister *reg, int qubit1, int qubit2,
+                            cfloat u00, cfloat u01, cfloat u02, cfloat u03,
+                            cfloat u10, cfloat u11, cfloat u12, cfloat u13,
+                            cfloat u20, cfloat u21, cfloat u22, cfloat u23,
+                            cfloat u30, cfloat u31, cfloat u32, cfloat u33) {
+    #ifdef QC2_DEBUG
+    assert(0 && "apply_2q_unitary not fully implemented for debug");
+    #endif
+
+    if (!reg) return 0;
+    if (qubit1 >= reg->n_qubits || qubit2 >= reg->n_qubits) return 0;
+    if (qubit1 == qubit2) return 0;
+
+    #if defined(QC2_USE_OPENCL)
+    if (reg->device_amplitudes) {
+        sync_to_host(reg);
+    }
+    #endif
+
+    size_t dim = reg->dim;
+    size_t quarter_dim = dim >> 2;
+
+    int min_q = (qubit1 < qubit2) ? qubit1 : qubit2;
+    int max_q = (qubit1 > qubit2) ? qubit1 : qubit2;
+
+    size_t min_bit = 1ULL << min_q;
+    size_t max_bit = 1ULL << max_q;
+    size_t mask_low = min_bit - 1;
+
+    #if defined(QC2_USE_OPENMP)
+    #pragma omp parallel for
+    #endif
+    for (size_t i = 0; i < quarter_dim; i++) {
+        size_t t1 = (i & mask_low) | ((i & ~mask_low) << 1);
+        size_t idx_base = (t1 & (max_bit - 1)) | ((t1 & ~(max_bit - 1)) << 1);
+
+        size_t idx0 = idx_base;
+        size_t idx1 = idx_base | min_bit;
+        size_t idx2 = idx_base | max_bit;
+        size_t idx3 = idx_base | min_bit | max_bit;
+
+        cfloat a0 = reg->amplitudes[idx0];
+        cfloat a1 = reg->amplitudes[idx1];
+        cfloat a2 = reg->amplitudes[idx2];
+        cfloat a3 = reg->amplitudes[idx3];
+
+        reg->amplitudes[idx0] = u00 * a0 + u01 * a1 + u02 * a2 + u03 * a3;
+        reg->amplitudes[idx1] = u10 * a0 + u11 * a1 + u12 * a2 + u13 * a3;
+        reg->amplitudes[idx2] = u20 * a0 + u21 * a1 + u22 * a2 + u23 * a3;
+        reg->amplitudes[idx3] = u30 * a0 + u31 * a1 + u32 * a2 + u33 * a3;
+    }
+
+    #if defined(QC2_USE_OPENCL)
+    if (reg->device_amplitudes) {
+        sync_to_device(reg);
+    }
+    #endif
+
     return 1;
 }
 
@@ -173,6 +216,7 @@ static int apply_controlled_gate(QuantumRegister *reg, int control, int target, 
 }
 
 // -- Gates --
+
 int q_pauli_x(QuantumRegister *reg, int target_qubit) {
     return apply_1q_gate(reg, target_qubit, Q_0_0, Q_1_0, Q_1_0, Q_0_0);
 }
@@ -384,3 +428,422 @@ int q_ccnot(QuantumRegister *reg, int control1, int control2, int target) {
 
     return 1;
 }
+
+int q_identity(QuantumRegister *reg, int target_qubit) {
+    return apply_1q_gate(reg, target_qubit, Q_1_0, Q_0_0, Q_0_0, Q_1_0);
+}
+
+int q_sqrt_x(QuantumRegister *reg, int target_qubit) {
+    qfloat half = Q_1_0 / Q_2_0;
+    cfloat sqrt_half = half + Q_I * half;
+    cfloat sqrt_half_conj = half - Q_I * half;
+    return apply_1q_gate(reg, target_qubit, sqrt_half, sqrt_half_conj, sqrt_half_conj, sqrt_half);
+}
+
+int q_sqrt_z(QuantumRegister *reg, int target_qubit) {
+    return apply_1q_gate(reg, target_qubit, Q_1_0, Q_0_0, Q_0_0, Q_CEXP(Q_I * Q_PI_QUARTER));
+}
+
+int q_u1(QuantumRegister *reg, int target_qubit, qfloat lambda) {
+    cfloat phase = fast_cos(lambda) + Q_I * fast_sin(lambda);
+    return apply_1q_gate(reg, target_qubit, Q_1_0, Q_0_0, Q_0_0, phase);
+}
+
+int q_u2(QuantumRegister *reg, int target_qubit, qfloat phi, qfloat lambda) {
+    qfloat inv_sqrt_2 = Q_1_0 / Q_SQRT(Q_2_0);
+    cfloat exp_phi = fast_cos(phi) + Q_I * fast_sin(phi);
+    cfloat exp_lambda = fast_cos(lambda) + Q_I * fast_sin(lambda);
+    cfloat exp_phi_lambda = fast_cos(phi + lambda) + Q_I * fast_sin(phi + lambda);
+    
+    cfloat u00 = inv_sqrt_2;
+    cfloat u01 = -inv_sqrt_2 * exp_lambda;
+    cfloat u10 = inv_sqrt_2 * exp_phi;
+    cfloat u11 = inv_sqrt_2 * exp_phi_lambda;
+    
+    return apply_1q_gate(reg, target_qubit, u00, u01, u10, u11);
+}
+
+int q_p_dagger(QuantumRegister *reg, int target_qubit) {
+    return apply_1q_gate(reg, target_qubit, Q_1_0, Q_0_0, Q_0_0, -Q_I);
+}
+
+int q_hadamard_row(QuantumRegister *reg, int first_qubit, int num_qubits) {
+    if (!reg) return 0;
+    if (first_qubit < 0 || num_qubits < 1) return 0;
+    if (first_qubit + num_qubits > reg->n_qubits) return 0;
+    
+    for (int i = 0; i < num_qubits; i++) {
+        if (!q_hadamard(reg, first_qubit + i)) return 0;
+    }
+    return 1;
+}
+
+int q_walsh(QuantumRegister *reg) {
+    if (!reg) return 0;
+    return q_hadamard_row(reg, 0, reg->n_qubits);
+}
+
+int q_ch(QuantumRegister *reg, int control, int target) {
+    qfloat inv_sqrt_2 = Q_1_0 / Q_SQRT(Q_2_0);
+    return apply_controlled_gate(reg, control, target, inv_sqrt_2, inv_sqrt_2, inv_sqrt_2, -inv_sqrt_2);
+}
+
+int q_cs(QuantumRegister *reg, int control, int target) {
+    return q_phase(reg, target) ? apply_controlled_gate(reg, control, target, Q_1_0, Q_0_0, Q_0_0, Q_I) : 0;
+}
+
+int q_ct(QuantumRegister *reg, int control, int target) {
+    return apply_controlled_gate(reg, control, target, Q_1_0, Q_0_0, Q_0_0, Q_CEXP(Q_I * Q_PI_QUARTER));
+}
+
+int q_crx(QuantumRegister *reg, int control, int target, qfloat theta) {
+    cfloat half_theta = theta / Q_2_0;
+    cfloat cos_ht = fast_cos(Q_CREAL(half_theta));
+    cfloat sin_ht = fast_sin(Q_CREAL(half_theta));
+    return apply_controlled_gate(reg, control, target, cos_ht, -Q_I * sin_ht, -Q_I * sin_ht, cos_ht);
+}
+
+int q_cry(QuantumRegister *reg, int control, int target, qfloat theta) {
+    cfloat half_theta = theta / Q_2_0;
+    cfloat cos_ht = fast_cos(Q_CREAL(half_theta));
+    cfloat sin_ht = fast_sin(Q_CREAL(half_theta));
+    return apply_controlled_gate(reg, control, target, cos_ht, -sin_ht, sin_ht, cos_ht);
+}
+
+int q_crz(QuantumRegister *reg, int control, int target, qfloat theta) {
+    cfloat half_theta = theta / Q_2_0;
+    cfloat cos_ht = fast_cos(Q_CREAL(half_theta));
+    cfloat sin_ht = fast_sin(Q_CREAL(half_theta));
+    return apply_controlled_gate(reg, control, target, cos_ht - Q_I * sin_ht, Q_0_0, Q_0_0, cos_ht + Q_I * sin_ht);
+}
+
+int q_cu1(QuantumRegister *reg, int control, int target, qfloat lambda) {
+    cfloat phase = fast_cos(lambda) + Q_I * fast_sin(lambda);
+    return apply_controlled_gate(reg, control, target, Q_1_0, Q_0_0, Q_0_0, phase);
+}
+
+int q_iswap(QuantumRegister *reg, int qubit1, int qubit2) {
+    if (!reg) return 0;
+    if (qubit1 == qubit2) return 1;
+    if (qubit1 >= reg->n_qubits || qubit2 >= reg->n_qubits) return 0;
+
+    #if defined(QC2_USE_OPENCL)
+    if (reg->device_amplitudes) {
+        if (!q_swap(reg, qubit1, qubit2)) return 0;
+        if (!q_phase(reg, qubit1)) return 0;
+        if (!q_phase(reg, qubit2)) return 0;
+        return q_cz(reg, qubit1, qubit2);
+    }
+    #endif
+
+    size_t dim = reg->dim;
+    size_t quarter_dim = dim >> 2;
+
+    int min_q = (qubit1 < qubit2) ? qubit1 : qubit2;
+    int max_q = (qubit1 > qubit2) ? qubit1 : qubit2;
+
+    size_t min_bit = 1ULL << min_q;
+    size_t max_bit = 1ULL << max_q;
+    size_t mask_low = min_bit - 1;
+
+    #if defined(QC2_USE_OPENMP)
+    #pragma omp parallel for
+    #endif
+    for (size_t i = 0; i < quarter_dim; i++) {
+        size_t t1 = (i & mask_low) | ((i & ~mask_low) << 1);
+        size_t idx_base = (t1 & (max_bit - 1)) | ((t1 & ~(max_bit - 1)) << 1);
+
+        //size_t idx00 = idx_base;
+        size_t idx01 = idx_base | min_bit;
+        size_t idx10 = idx_base | max_bit;
+        //size_t idx11 = idx_base | min_bit | max_bit;
+
+        cfloat amp01 = reg->amplitudes[idx01];
+        cfloat amp10 = reg->amplitudes[idx10];
+
+        reg->amplitudes[idx01] = Q_I * amp10;
+        reg->amplitudes[idx10] = Q_I * amp01;
+    }
+    return 1;
+}
+
+int q_sqrt_cnot(QuantumRegister *reg, int control, int target) {
+    qfloat half = Q_1_0 / Q_2_0;
+    cfloat sqrt_half = half + Q_I * half;
+    cfloat sqrt_half_conj = half - Q_I * half;
+    return apply_controlled_gate(reg, control, target, sqrt_half, sqrt_half_conj, sqrt_half_conj, sqrt_half);
+}
+
+int q_rxx(QuantumRegister *reg, int qubit1, int qubit2, qfloat theta) {
+    if (!reg) return 0;
+    if (qubit1 == qubit2) return 1;
+    if (qubit1 >= reg->n_qubits || qubit2 >= reg->n_qubits) return 0;
+
+    cfloat half_theta = theta / Q_2_0;
+    cfloat cos_ht = fast_cos(Q_CREAL(half_theta));
+    cfloat sin_ht = fast_sin(Q_CREAL(half_theta));
+
+    return apply_2q_unitary(reg, qubit1, qubit2,
+                            cos_ht, Q_0_0, Q_0_0, -Q_I * sin_ht,
+                            Q_0_0, cos_ht, Q_I * sin_ht, Q_0_0,
+                            Q_0_0, Q_I * sin_ht, cos_ht, Q_0_0,
+                            -Q_I * sin_ht, Q_0_0, Q_0_0, cos_ht);
+}
+
+int q_ryy(QuantumRegister *reg, int qubit1, int qubit2, qfloat theta) {
+    if (!reg) return 0;
+    if (qubit1 == qubit2) return 1;
+    if (qubit1 >= reg->n_qubits || qubit2 >= reg->n_qubits) return 0;
+
+    cfloat half_theta = theta / Q_2_0;
+    cfloat cos_ht = fast_cos(Q_CREAL(half_theta));
+    cfloat sin_ht = fast_sin(Q_CREAL(half_theta));
+
+    return apply_2q_unitary(reg, qubit1, qubit2,
+                            cos_ht, Q_0_0, Q_0_0, Q_I * sin_ht,
+                            Q_0_0, cos_ht, -Q_I * sin_ht, Q_0_0,
+                            Q_0_0, -Q_I * sin_ht, cos_ht, Q_0_0,
+                            Q_I * sin_ht, Q_0_0, Q_0_0, cos_ht);
+}
+
+int q_rzz(QuantumRegister *reg, int qubit1, int qubit2, qfloat theta) {
+    if (!reg) return 0;
+    if (qubit1 == qubit2) return 1;
+    if (qubit1 >= reg->n_qubits || qubit2 >= reg->n_qubits) return 0;
+
+    cfloat half_theta = theta / Q_2_0;
+    cfloat exp_minus = fast_cos(Q_CREAL(half_theta)) - Q_I * fast_sin(Q_CREAL(half_theta));
+    cfloat exp_plus = fast_cos(Q_CREAL(half_theta)) + Q_I * fast_sin(Q_CREAL(half_theta));
+
+    return apply_2q_unitary(reg, qubit1, qubit2,
+                            exp_minus, Q_0_0, Q_0_0, Q_0_0,
+                            Q_0_0, exp_plus, Q_0_0, Q_0_0,
+                            Q_0_0, Q_0_0, exp_plus, Q_0_0,
+                            Q_0_0, Q_0_0, Q_0_0, exp_minus);
+}
+
+int q_ecr(QuantumRegister *reg, int qubit1, int qubit2) {
+    if (!reg) return 0;
+    q_hadamard(reg, qubit2);
+    q_crz(reg, qubit1, qubit2, Q_PI_HALF);
+    q_hadamard(reg, qubit1);
+    return 1;
+}
+
+int q_fredkin(QuantumRegister *reg, int control, int target1, int target2) {
+    if (!reg) return 0;
+    if (control >= reg->n_qubits || target1 >= reg->n_qubits || target2 >= reg->n_qubits) return 0;
+    if (control == target1 || control == target2 || target1 == target2) return 0;
+
+    #if defined(QC2_USE_OPENCL)
+    if (reg->device_amplitudes) {
+        return apply_fredkin_gate_opencl(reg, control, target1, target2);
+    }
+    #endif
+
+    size_t dim = reg->dim;
+    size_t sixth_dim = dim >> 3;
+
+    int q_sorted[3] = {control, target1, target2};
+    if (q_sorted[0] > q_sorted[1]) { int temp = q_sorted[0]; q_sorted[0] = q_sorted[1]; q_sorted[1] = temp; }
+    if (q_sorted[1] > q_sorted[2]) { int temp = q_sorted[1]; q_sorted[1] = q_sorted[2]; q_sorted[2] = temp; }
+    if (q_sorted[0] > q_sorted[1]) { int temp = q_sorted[0]; q_sorted[0] = q_sorted[1]; q_sorted[1] = temp; }
+
+    int q0 = q_sorted[0];
+    int q1 = q_sorted[1];
+    int q2 = q_sorted[2];
+
+    size_t mask0 = (1ULL << q0) - 1;
+    size_t mask1 = (1ULL << q1) - 1;
+    size_t mask2 = (1ULL << q2) - 1;
+
+    size_t bit_c = 1ULL << control;
+    size_t bit_t1 = 1ULL << target1;
+    size_t bit_t2 = 1ULL << target2;
+    size_t fixed_bits = bit_c;
+
+    #if defined(QC2_USE_OPENMP)
+    #pragma omp parallel for
+    #endif
+    for (size_t i = 0; i < sixth_dim; i++) {
+        size_t t0 = (i & mask0) | ((i & ~mask0) << 1);
+        size_t t1 = (t0 & mask1) | ((t0 & ~mask1) << 1);
+        size_t t2 = (t1 & mask2) | ((t1 & ~mask2) << 1);
+
+        size_t idx_base = t2 | fixed_bits;
+        size_t idx_t1_0_t2_1 = idx_base | bit_t2;
+        size_t idx_t1_1_t2_0 = idx_base | bit_t1;
+        size_t idx_t1_0_t2_0 = idx_base;
+        size_t idx_t1_1_t2_1 = idx_base | bit_t1 | bit_t2;
+
+        cfloat tmp0 = reg->amplitudes[idx_t1_0_t2_1];
+        cfloat tmp1 = reg->amplitudes[idx_t1_1_t2_0];
+
+        reg->amplitudes[idx_t1_0_t2_1] = reg->amplitudes[idx_t1_1_t2_1];
+        reg->amplitudes[idx_t1_1_t2_0] = reg->amplitudes[idx_t1_0_t2_0];
+        reg->amplitudes[idx_t1_1_t2_1] = tmp0;
+        reg->amplitudes[idx_t1_0_t2_0] = tmp1;
+    }
+
+    return 1;
+}
+
+int q_cch(QuantumRegister *reg, int control1, int control2, int target) {
+    if (!reg) return 0;
+    if (control1 >= reg->n_qubits || control2 >= reg->n_qubits || target >= reg->n_qubits) return 0;
+    if (control1 == control2 || control1 == target || control2 == target) return 0;
+
+    #if defined(QC2_USE_OPENCL)
+    if (reg->device_amplitudes) {
+        sync_to_host(reg);
+    }
+    #endif
+
+    size_t dim = reg->dim;
+    size_t eighth_dim = dim >> 3;
+
+    int q_sorted[3] = {control1, control2, target};
+    if (q_sorted[0] > q_sorted[1]) { int temp = q_sorted[0]; q_sorted[0] = q_sorted[1]; q_sorted[1] = temp; }
+    if (q_sorted[1] > q_sorted[2]) { int temp = q_sorted[1]; q_sorted[1] = q_sorted[2]; q_sorted[2] = temp; }
+    if (q_sorted[0] > q_sorted[1]) { int temp = q_sorted[0]; q_sorted[0] = q_sorted[1]; q_sorted[1] = temp; }
+
+    int q0 = q_sorted[0];
+    int q1 = q_sorted[1];
+    int q2 = q_sorted[2];
+
+    size_t mask0 = (1ULL << q0) - 1;
+    size_t mask1 = (1ULL << q1) - 1;
+    size_t mask2 = (1ULL << q2) - 1;
+
+    size_t bit_c1 = 1ULL << control1;
+    size_t bit_c2 = 1ULL << control2;
+    size_t bit_t = 1ULL << target;
+    size_t fixed_bits = bit_c1 | bit_c2;
+    
+    qfloat inv_sqrt_2 = Q_1_0 / Q_SQRT(Q_2_0);
+
+    #if defined(QC2_USE_OPENMP)
+    #pragma omp parallel for
+    #endif
+    for (size_t i = 0; i < eighth_dim; i++) {
+        size_t t0 = (i & mask0) | ((i & ~mask0) << 1);
+        size_t t1 = (t0 & mask1) | ((t0 & ~mask1) << 1);
+        size_t t2 = (t1 & mask2) | ((t1 & ~mask2) << 1);
+
+        size_t idx0 = t2 | fixed_bits;
+        size_t idx1 = idx0 | bit_t;
+        
+        cfloat a0 = reg->amplitudes[idx0];
+        cfloat a1 = reg->amplitudes[idx1];
+        
+        reg->amplitudes[idx0] = (a0 + a1) * inv_sqrt_2;
+        reg->amplitudes[idx1] = (a0 - a1) * inv_sqrt_2;
+    }
+
+    #if defined(QC2_USE_OPENCL)
+    if (reg->device_amplitudes) {
+        sync_to_device(reg);
+    }
+    #endif
+
+    return 1;
+}
+
+int q_ccz(QuantumRegister *reg, int control1, int control2, int target) {
+    if (!reg) return 0;
+    if (control1 >= reg->n_qubits || control2 >= reg->n_qubits || target >= reg->n_qubits) return 0;
+    if (control1 == control2 || control1 == target || control2 == target) return 0;
+
+    #if defined(QC2_USE_OPENCL)
+    if (reg->device_amplitudes) {
+        return apply_ccz_gate_opencl(reg, control1, control2, target);
+    }
+    #endif
+
+    size_t dim = reg->dim;
+    size_t eighth_dim = dim >> 3;
+
+    int q_sorted[3] = {control1, control2, target};
+    if (q_sorted[0] > q_sorted[1]) { int temp = q_sorted[0]; q_sorted[0] = q_sorted[1]; q_sorted[1] = temp; }
+    if (q_sorted[1] > q_sorted[2]) { int temp = q_sorted[1]; q_sorted[1] = q_sorted[2]; q_sorted[2] = temp; }
+    if (q_sorted[0] > q_sorted[1]) { int temp = q_sorted[0]; q_sorted[0] = q_sorted[1]; q_sorted[1] = temp; }
+
+    int q0 = q_sorted[0];
+    int q1 = q_sorted[1];
+    int q2 = q_sorted[2];
+
+    size_t mask0 = (1ULL << q0) - 1;
+    size_t mask1 = (1ULL << q1) - 1;
+    size_t mask2 = (1ULL << q2) - 1;
+
+    size_t bit_c1 = 1ULL << control1;
+    size_t bit_c2 = 1ULL << control2;
+    size_t bit_t = 1ULL << target;
+    size_t fixed_bits = bit_c1 | bit_c2 | bit_t;
+
+    #if defined(QC2_USE_OPENMP)
+    #pragma omp parallel for
+    #endif
+    for (size_t i = 0; i < eighth_dim; i++) {
+        size_t t0 = (i & mask0) | ((i & ~mask0) << 1);
+        size_t t1 = (t0 & mask1) | ((t0 & ~mask1) << 1);
+        size_t t2 = (t1 & mask2) | ((t1 & ~mask2) << 1);
+
+        size_t idx = t2 | fixed_bits;
+        reg->amplitudes[idx] = -reg->amplitudes[idx];
+    }
+
+    return 1;
+}
+
+int q_ccp(QuantumRegister *reg, int control1, int control2, int target, qfloat theta) {
+    if (!reg) return 0;
+    if (control1 >= reg->n_qubits || control2 >= reg->n_qubits || target >= reg->n_qubits) return 0;
+    if (control1 == control2 || control1 == target || control2 == target) return 0;
+
+    size_t dim = reg->dim;
+    size_t eighth_dim = dim >> 3;
+
+    #if defined(QC2_USE_OPENCL)
+    if (reg->device_amplitudes) sync_to_host(reg);
+    #endif
+
+    int q_sorted[3] = {control1, control2, target};
+    if (q_sorted[0] > q_sorted[1]) { int temp = q_sorted[0]; q_sorted[0] = q_sorted[1]; q_sorted[1] = temp; }
+    if (q_sorted[1] > q_sorted[2]) { int temp = q_sorted[1]; q_sorted[1] = q_sorted[2]; q_sorted[2] = temp; }
+    if (q_sorted[0] > q_sorted[1]) { int temp = q_sorted[0]; q_sorted[0] = q_sorted[1]; q_sorted[1] = temp; }
+
+    int q0 = q_sorted[0];
+    int q1 = q_sorted[1];
+    int q2 = q_sorted[2];
+
+    size_t mask0 = (1ULL << q0) - 1;
+    size_t mask1 = (1ULL << q1) - 1;
+    size_t mask2 = (1ULL << q2) - 1;
+
+    size_t bit_c1 = 1ULL << control1;
+    size_t bit_c2 = 1ULL << control2;
+    size_t bit_t = 1ULL << target;
+    size_t fixed_bits = bit_c1 | bit_c2 | bit_t;
+
+    cfloat phase = fast_cos(theta) + Q_I * fast_sin(theta);
+
+    #if defined(QC2_USE_OPENMP)
+    #pragma omp parallel for
+    #endif
+    for (size_t i = 0; i < eighth_dim; i++) {
+        size_t t0 = (i & mask0) | ((i & ~mask0) << 1);
+        size_t t1 = (t0 & mask1) | ((t0 & ~mask1) << 1);
+        size_t t2 = (t1 & mask2) | ((t1 & ~mask2) << 1);
+
+        size_t idx = t2 | fixed_bits;
+        reg->amplitudes[idx] = phase * reg->amplitudes[idx];
+    }
+
+    #if defined(QC2_USE_OPENCL)
+    if (reg->device_amplitudes) sync_to_device(reg);
+    #endif
+
+    return 1;
+}
+

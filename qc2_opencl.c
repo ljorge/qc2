@@ -12,9 +12,11 @@ static cl_program cl_prog = NULL;
 static cl_kernel k_apply_gate = NULL;
 static cl_kernel k_apply_controlled_gate = NULL;
 static cl_kernel k_apply_toffoli_gate = NULL;
+static cl_kernel k_apply_fredkin_gate = NULL;
+static cl_kernel k_apply_ccz_gate = NULL;
 
 // -- Kernel Source --
-static const char *CL_KERNEL_SOURCE =
+static const char *CL_KERNEL_SOURCE_1 =
 "// Complex multiplication helpers \n"
 "inline qcomplex cmul(qcomplex a, qcomplex b) { \n"
 "    return (qcomplex)(a.x*b.x - a.y*b.y, a.x*b.y + a.y*b.x); \n"
@@ -49,7 +51,9 @@ static const char *CL_KERNEL_SOURCE =
 "    state[idx0] = cadd(cmul(u00, a), cmul(u01, b)); \n"
 "    state[idx1] = cadd(cmul(u10, a), cmul(u11, b)); \n"
 "} \n"
-"\n"
+"\n";
+
+static const char *CL_KERNEL_SOURCE_2 =
 "__kernel void apply_controlled_gate(__global qcomplex *state, \n"
 "                                    unsigned int control_qubit, \n"
 "                                    unsigned int target_qubit, \n"
@@ -80,7 +84,9 @@ static const char *CL_KERNEL_SOURCE =
 "        state[idx1] = cadd(cmul(u10, a), cmul(u11, b)); \n"
 "    } \n"
 "} \n"
-"\n"
+"\n";
+
+static const char *CL_KERNEL_SOURCE_3 =
 "__kernel void apply_toffoli_gate(__global qcomplex *state, \n"
 "                                 unsigned int c1, unsigned int c2, \n"
 "                                 unsigned int target, \n"
@@ -110,6 +116,60 @@ static const char *CL_KERNEL_SOURCE =
 "        \n"
 "        state[idx0] = cadd(cmul(u00, a), cmul(u01, b)); \n"
 "        state[idx1] = cadd(cmul(u10, a), cmul(u11, b)); \n"
+"    } \n"
+"} \n"
+"\n";
+
+static const char *CL_KERNEL_SOURCE_4 =
+"__kernel void apply_fredkin_gate(__global qcomplex *state, \n"
+"                                 unsigned int control, \n"
+"                                 unsigned int target1, \n"
+"                                 unsigned int target2) \n"
+"{ \n"
+"    size_t i = get_global_id(0); \n"
+"    size_t c_bit = 1UL << control; \n"
+"    size_t t1_bit = 1UL << target1; \n"
+"    size_t t2_bit = 1UL << target2; \n"
+"    \n"
+"    size_t mask_low = t1_bit - 1; \n"
+"    size_t t1 = (i & mask_low) | ((i & ~mask_low) << 1); \n"
+"    size_t mask_mid = (t2_bit - 1) & ~mask_low; \n"
+"    size_t t2 = (t1 & mask_mid) | ((t1 & ~mask_mid) << 1); \n"
+"    size_t t3 = (t2 & (t2_bit - 1)) | ((t2 & ~(t2_bit - 1)) << 1); \n"
+"    \n"
+"    if ((t3 & c_bit) != 0) { \n"
+"        size_t idx01 = t3 | t2_bit; \n"
+"        size_t idx10 = t3 | t1_bit; \n"
+"        size_t idx00 = t3; \n"
+"        size_t idx11 = t3 | t1_bit | t2_bit; \n"
+"        \n"
+"        qcomplex tmp0 = state[idx01]; \n"
+"        qcomplex tmp1 = state[idx10]; \n"
+"        \n"
+"        state[idx01] = state[idx11]; \n"
+"        state[idx10] = state[idx00]; \n"
+"        state[idx11] = tmp0; \n"
+"        state[idx00] = tmp1; \n"
+"    } \n"
+"} \n"
+"\n";
+
+static const char *CL_KERNEL_SOURCE_5 =
+"__kernel void apply_ccz_gate(__global qcomplex *state, \n"
+"                             unsigned int c1, \n"
+"                             unsigned int c2, \n"
+"                             unsigned int target) \n"
+"{ \n"
+"    size_t i = get_global_id(0); \n"
+"    size_t c1_bit = 1UL << c1; \n"
+"    size_t c2_bit = 1UL << c2; \n"
+"    size_t t_bit = 1UL << target; \n"
+"    size_t mask_low = t_bit - 1; \n"
+"    \n"
+"    size_t idx0 = (i & mask_low) | ((i & ~mask_low) << 1); \n"
+"    \n"
+"    if ((idx0 & c1_bit) && (idx0 & c2_bit) && (idx0 & t_bit)) { \n"
+"        state[idx0] = (qcomplex)(-state[idx0].x, -state[idx0].y); \n"
 "    } \n"
 "} \n";
 
@@ -248,8 +308,15 @@ int init_opencl(void) {
             #error "Precision not defined."
         #endif
 
-        const char *sources[] = {header, CL_KERNEL_SOURCE};
-        cl_prog = clCreateProgramWithSource(cl_ctx, 2, sources, NULL, &err);
+        const char *sources[] = {
+            header, 
+            CL_KERNEL_SOURCE_1, 
+            CL_KERNEL_SOURCE_2, 
+            CL_KERNEL_SOURCE_3, 
+            CL_KERNEL_SOURCE_4, 
+            CL_KERNEL_SOURCE_5
+        };
+        cl_prog = clCreateProgramWithSource(cl_ctx, 6, sources, NULL, &err);
         if (!cl_prog) return 0;
 
         err = clBuildProgram(cl_prog, 1, &device, NULL, NULL, NULL);
@@ -278,6 +345,12 @@ int init_opencl(void) {
     k_apply_toffoli_gate = clCreateKernel(cl_prog, "apply_toffoli_gate", &err);
     if (!k_apply_toffoli_gate) return 0;
 
+    k_apply_fredkin_gate = clCreateKernel(cl_prog, "apply_fredkin_gate", &err);
+    if (!k_apply_fredkin_gate) return 0;
+
+    k_apply_ccz_gate = clCreateKernel(cl_prog, "apply_ccz_gate", &err);
+    if (!k_apply_ccz_gate) return 0;
+
     return 1;
 }
 
@@ -288,6 +361,8 @@ void cleanup_opencl(void) {
     if (k_apply_gate) clReleaseKernel(k_apply_gate);
     if (k_apply_controlled_gate) clReleaseKernel(k_apply_controlled_gate);
     if (k_apply_toffoli_gate) clReleaseKernel(k_apply_toffoli_gate);
+    if (k_apply_fredkin_gate) clReleaseKernel(k_apply_fredkin_gate);
+    if (k_apply_ccz_gate) clReleaseKernel(k_apply_ccz_gate);
     if (cl_prog) clReleaseProgram(cl_prog);
     if (cl_queue) clReleaseCommandQueue(cl_queue);
     if (cl_ctx) clReleaseContext(cl_ctx);
@@ -498,6 +573,50 @@ int apply_toffoli_gate_opencl(QuantumRegister *reg, int control1, int control2, 
 
     size_t global_work_size = reg->dim / 2;
     err = clEnqueueNDRangeKernel(cl_queue, k_apply_toffoli_gate, 1, NULL, &global_work_size, NULL, 0, NULL, NULL);
+    if (err != CL_SUCCESS) return 0;
+
+    reg->device_dirty = 1;
+    return 1;
+}
+
+int apply_fredkin_gate_opencl(QuantumRegister *reg, int control, int target1, int target2) {
+    if (!reg->device_amplitudes) return 0;
+
+    cl_int err;
+    unsigned int c_arg = (unsigned int)control;
+    unsigned int t1_arg = (unsigned int)target1;
+    unsigned int t2_arg = (unsigned int)target2;
+
+    int arg_idx = 0;
+    clSetKernelArg(k_apply_fredkin_gate, (cl_uint)arg_idx++, sizeof(cl_mem), &reg->device_amplitudes);
+    clSetKernelArg(k_apply_fredkin_gate, (cl_uint)arg_idx++, sizeof(unsigned int), &c_arg);
+    clSetKernelArg(k_apply_fredkin_gate, (cl_uint)arg_idx++, sizeof(unsigned int), &t1_arg);
+    clSetKernelArg(k_apply_fredkin_gate, (cl_uint)arg_idx++, sizeof(unsigned int), &t2_arg);
+
+    size_t global_work_size = reg->dim / 4;
+    err = clEnqueueNDRangeKernel(cl_queue, k_apply_fredkin_gate, 1, NULL, &global_work_size, NULL, 0, NULL, NULL);
+    if (err != CL_SUCCESS) return 0;
+
+    reg->device_dirty = 1;
+    return 1;
+}
+
+int apply_ccz_gate_opencl(QuantumRegister *reg, int control1, int control2, int target) {
+    if (!reg->device_amplitudes) return 0;
+
+    cl_int err;
+    unsigned int c1_arg = (unsigned int)control1;
+    unsigned int c2_arg = (unsigned int)control2;
+    unsigned int t_arg = (unsigned int)target;
+
+    int arg_idx = 0;
+    clSetKernelArg(k_apply_ccz_gate, (cl_uint)arg_idx++, sizeof(cl_mem), &reg->device_amplitudes);
+    clSetKernelArg(k_apply_ccz_gate, (cl_uint)arg_idx++, sizeof(unsigned int), &c1_arg);
+    clSetKernelArg(k_apply_ccz_gate, (cl_uint)arg_idx++, sizeof(unsigned int), &c2_arg);
+    clSetKernelArg(k_apply_ccz_gate, (cl_uint)arg_idx++, sizeof(unsigned int), &t_arg);
+
+    size_t global_work_size = reg->dim / 2;
+    err = clEnqueueNDRangeKernel(cl_queue, k_apply_ccz_gate, 1, NULL, &global_work_size, NULL, 0, NULL, NULL);
     if (err != CL_SUCCESS) return 0;
 
     reg->device_dirty = 1;

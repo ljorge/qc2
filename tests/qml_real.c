@@ -112,12 +112,16 @@ int classify_knn(const QuantumRegister *reg_input) {
     Candidate *results = (Candidate*)malloc(sizeof(Candidate) * (size_t)num_train_samples);
 
     // Parallel loop over all training samples
+    #if defined(QC2_USE_OPENMP)
     #pragma omp parallel
+    #endif
     {
         // Each thread gets its own temp register to avoid reallocation
         QuantumRegister *reg_temp = create_register(N_QUBITS);
 
+        #if defined(QC2_USE_OPENMP)
         #pragma omp for
+        #endif
         for (int i = 0; i < num_train_samples; i++) {
             // Encode training sample
             encode_data(reg_temp, train_data[i].vector);

@@ -2,6 +2,18 @@
 COMPILER ?= gcc
 CC = $(COMPILER)
 
+# Command Definitions
+PYTHON ?= python3
+AR ?= ar
+RM ?= rm -f
+RMR ?= rm -rf
+MKDIR ?= mkdir -p
+ECHO ?= echo
+LCOV ?= lcov
+GENHTML ?= genhtml
+DOXYGEN ?= doxygen
+CPPCHECK ?= cppcheck
+
 # Base CFLAGS
 CFLAGS = -Wall -Wextra -pedantic -Wshadow -Wconversion -Wunreachable-code -I. -DQC2_COMPILER_NAME=\"$(CC)\"
 
@@ -11,10 +23,10 @@ LDFLAGS = -lm
 # Configuration Defaults
 PRECISION ?= DOUBLE
 OPENMP ?= 1
-OPENCL ?= 1
-OPENCL_VERSION ?= 120
+OPENCL ?= 0
+OPENCL_VERSION ?= 200
 ALIGNED_MEMORY ?= 1
-USE_TRIG_TABLES ?= 0
+USE_TRIG_TABLES ?= 1
 U3_TEST_STEP_DEG ?= 10
 DEBUG ?= 0
 
@@ -39,11 +51,6 @@ endif
 ifeq ($(OPENCL), 1)
 	CFLAGS += -DQC2_USE_OPENCL -DCL_TARGET_OPENCL_VERSION=$(OPENCL_VERSION)
 	LDFLAGS += -lOpenCL
-
-	ifeq ($(shell uname -s),FreeBSD)
-		CFLAGS += -I/usr/local/include
-		LDFLAGS += -L/usr/local/lib
-	endif
 endif
 
 # Aligned Memory
@@ -84,7 +91,7 @@ all: $(LIB_STATIC)
 
 # Static Library
 $(LIB_STATIC): $(QC2_OBJS)
-	ar rcs $@ $^
+	$(AR) rcs $@ $^
 
 # Build individual modules
 qc2_core.o: qc2_core.c qc2.h qc2_internal.h
@@ -99,87 +106,87 @@ qc2_opencl.o: qc2_opencl.c qc2.h qc2_internal.h
 # Output test executable to tests/bin/
 # Link against static library
 tests/bin/test_suite: tests/test_suite.c $(LIB_STATIC)
-	@mkdir -p tests/bin
+	@$(MKDIR) tests/bin
 	$(CC) $(CFLAGS) tests/test_suite.c -L. -l$(LIB_NAME) -o tests/bin/test_suite $(LDFLAGS)
 
 tests/bin/bell_state: tests/bell_state.c $(LIB_STATIC)
-	@mkdir -p tests/bin
+	@$(MKDIR) tests/bin
 	$(CC) $(CFLAGS) tests/bell_state.c -L. -l$(LIB_NAME) -o tests/bin/bell_state $(LDFLAGS)
 
 tests/bin/benchmark: tests/benchmark.c $(LIB_STATIC)
-	@mkdir -p tests/bin
+	@$(MKDIR) tests/bin
 	$(CC) $(CFLAGS) tests/benchmark.c -L. -l$(LIB_NAME) -o tests/bin/benchmark $(LDFLAGS)
 
 tests/bin/ghz_state: tests/ghz_state.c $(LIB_STATIC)
-	@mkdir -p tests/bin
+	@$(MKDIR) tests/bin
 	$(CC) $(CFLAGS) tests/ghz_state.c -L. -l$(LIB_NAME) -o tests/bin/ghz_state $(LDFLAGS)
 
 tests/bin/bv_algorithm: tests/bv_algorithm.c $(LIB_STATIC)
-	@mkdir -p tests/bin
+	@$(MKDIR) tests/bin
 	$(CC) $(CFLAGS) tests/bv_algorithm.c -L. -l$(LIB_NAME) -o tests/bin/bv_algorithm $(LDFLAGS)
 
 tests/bin/dj_algorithm: tests/dj_algorithm.c $(LIB_STATIC)
-	@mkdir -p tests/bin
+	@$(MKDIR) tests/bin
 	$(CC) $(CFLAGS) tests/dj_algorithm.c -L. -l$(LIB_NAME) -o tests/bin/dj_algorithm $(LDFLAGS)
 
 tests/bin/qft_test: tests/qft_test.c $(LIB_STATIC)
-	@mkdir -p tests/bin
+	@$(MKDIR) tests/bin
 	$(CC) $(CFLAGS) tests/qft_test.c -L. -l$(LIB_NAME) -o tests/bin/qft_test $(LDFLAGS)
 
 
 
 test: tests/bin/test_suite tests/bin/bell_state tests/bin/ghz_state tests/bin/bv_algorithm tests/bin/dj_algorithm tests/bin/qft_test tests/bin/qml_real
-	@echo "***************** ./tests/bin/test_suite *****************"
+	@$(ECHO) "***************** ./tests/bin/test_suite *****************"
 	./tests/bin/test_suite
-	@echo "***************** ./tests/bin/bell_state *****************"
+	@$(ECHO) "***************** ./tests/bin/bell_state *****************"
 	./tests/bin/bell_state
-	@echo "***************** ./tests/bin/ghz_state (4 Qubits) *******"
+	@$(ECHO) "***************** ./tests/bin/ghz_state (4 Qubits) *******"
 	./tests/bin/ghz_state 4
-	@echo "***************** ./tests/bin/bv_algorithm (5 Qubits) ****"
+	@$(ECHO) "***************** ./tests/bin/bv_algorithm (5 Qubits) ****"
 	./tests/bin/bv_algorithm 5
-	@echo "***************** ./tests/bin/dj_algorithm (8 Qubits) ****"
+	@$(ECHO) "***************** ./tests/bin/dj_algorithm (8 Qubits) ****"
 	./tests/bin/dj_algorithm 8
-	@echo "***************** ./tests/bin/qft_test (6 Qubits) ********"
+	@$(ECHO) "***************** ./tests/bin/qft_test (6 Qubits) ********"
 	./tests/bin/qft_test 6
-	@echo "***************** ./tests/bin/qml_real ***********************"
+	@$(ECHO) "***************** ./tests/bin/qml_real ***********************"
 	./tests/bin/qml_real
 
 tests/bin/qml_real: tests/qml_real.c $(LIB_STATIC) | train_samples.bin
-	@mkdir -p tests/bin
+	@$(MKDIR) tests/bin
 	$(CC) $(CFLAGS) tests/qml_real.c -L. -l$(LIB_NAME) -o tests/bin/qml_real $(LDFLAGS)
 
 train_samples.bin:
-	@echo "Downloading/Generating QML Datasets..."
-	python3 scripts/preprocess_qml.py
+	@$(ECHO) "Downloading/Generating QML Datasets..."
+	$(PYTHON) scripts/preprocess_qml.py
 
 benchmark: tests/bin/benchmark
-	@echo "***************** ./tests/bin/benchmark *****************"
+	@$(ECHO) "***************** ./tests/bin/benchmark *****************"
 	./tests/bin/benchmark 30
 
 doc:
-	doxygen Doxyfile
+	$(DOXYGEN) Doxyfile
 
 serve: doc
-	@echo "Serving documentation at http://localhost:8000"
-	python3 -m http.server -d doc/html 8000
+	@$(ECHO) "Serving documentation at http://localhost:8000"
+	$(PYTHON) -m http.server -d doc/html 8000
 
 # Cleanup (including generated data)
 clean:
-	rm -f *.o *.a tests/bin/*
-	rm -rf doc html
-	rm -f *.gcno *.gcda *.gcov coverage.info
-	rm -rf coverage_report qc2_kernel_cache.bin
-	rm -f centroids.bin train_samples.bin test_samples.bin curated.tar.gz*
-	rm -rf temp_dataset
+	$(RM) *.o *.a tests/bin/*
+	$(RMR) doc html
+	$(RM) *.gcno *.gcda *.gcov coverage.info
+	$(RMR) coverage_report qc2_kernel_cache.bin
+	$(RM) centroids.bin train_samples.bin test_samples.bin curated.tar.gz*
+	$(RMR) temp_dataset
 
 # Code Quality
 cppcheck:
-	cppcheck --force --enable=all --inconclusive --std=c99 --suppress=missingIncludeSystem $(filter -D% -I%,$(CFLAGS)) .
+	$(CPPCHECK) --force --enable=all --inconclusive --std=c99 --suppress=missingIncludeSystem $(filter -D% -I%,$(CFLAGS)) .
 
 coverage: CFLAGS += -fprofile-arcs -ftest-coverage
 coverage: LDFLAGS += --coverage
 coverage: clean test
-	lcov --capture --directory . --output-file coverage.info
-	lcov --remove coverage.info '/usr/*' --output-file coverage.info
-	genhtml coverage.info --output-directory coverage_report
-	@echo "Coverage report generated in coverage_report/index.html"
+	$(LCOV) --capture --directory . --output-file coverage.info
+	$(LCOV) --remove coverage.info '/usr/*' --output-file coverage.info
+	$(GENHTML) coverage.info --output-directory coverage_report
+	@$(ECHO) "Coverage report generated in coverage_report/index.html"

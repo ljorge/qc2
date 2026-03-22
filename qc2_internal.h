@@ -36,6 +36,8 @@ int apply_controlled_gate_opencl(QuantumRegister *reg, int control, int target,
                                 cfloat u00, cfloat u01, cfloat u10, cfloat u11);
 int apply_toffoli_gate_opencl(QuantumRegister *reg, int control1, int control2, int target,
                                 cfloat u00, cfloat u01, cfloat u10, cfloat u11);
+int apply_fredkin_gate_opencl(QuantumRegister *reg, int control, int target1, int target2);
+int apply_ccz_gate_opencl(QuantumRegister *reg, int control1, int control2, int target);
 int qc2_opencl_init_register(QuantumRegister *reg);
 void qc2_opencl_free_register(QuantumRegister *reg);
 void qc2_opencl_reset_register(QuantumRegister *reg);

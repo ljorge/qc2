@@ -77,61 +77,468 @@ QuantumRegister *reg = create_register(2);
 
 ## Gates
 
-All gates now operate on the register and take the target qubit index(es) as arguments.
+All gates operate on the register and take the target qubit index(es) as arguments.
 
-### Single Qubit Gates
+### Single-Qubit Gates
 
-**Pauli-X (NOT), Y, Z:**
+| Function | Description | Example |
+| ---------- | ----------- | ------- |
+| `q_identity(reg, qubit)` | Identity (I) | `q_identity(reg, 0);` |
+| `q_pauli_x(reg, qubit)` | Pauli-X (NOT, X) | `q_pauli_x(reg, 0);` |
+| `q_pauli_y(reg, qubit)` | Pauli-Y (Y) | `q_pauli_y(reg, 0);` |
+| `q_pauli_z(reg, qubit)` | Pauli-Z (Z) | `q_pauli_z(reg, 0);` |
+| `q_hadamard(reg, qubit)` | Hadamard (H) | `q_hadamard(reg, 0);` |
+| `q_phase(reg, qubit)` | Phase (S) | `q_phase(reg, 0);` |
+| `q_t_gate(reg, qubit)` | T gate | `q_t_gate(reg, 0);` |
+| `q_rx(reg, qubit, theta)` | Rotation X | `q_rx(reg, 0, 3.14159);` |
+| `q_ry(reg, qubit, theta)` | Rotation Y | `q_ry(reg, 0, 3.14159);` |
+| `q_rz(reg, qubit, theta)` | Rotation Z | `q_rz(reg, 0, 3.14159);` |
+| `q_u3(reg, qubit, theta, phi, lambda)` | U3 gate | `q_u3(reg, 0, 1.0, 0.5, 0.25);` |
+| `q_sqrt_x(reg, qubit)` | Square-root X (√X) | `q_sqrt_x(reg, 0);` |
+| `q_sqrt_z(reg, qubit)` | Square-root Z (√Z) | `q_sqrt_z(reg, 0);` |
+| `q_u1(reg, qubit, lambda)` | Phase rotation U1 | `q_u1(reg, 0, 3.14159);` |
+| `q_u2(reg, qubit, phi, lambda)` | U2 gate | `q_u2(reg, 0, 0.0, 1.57);` |
+| `q_p(reg, qubit)` | Phase gate (P) | `q_p(reg, 0);` |
+| `q_p_dagger(reg, qubit)` | Phase dagger (P†) | `q_p_dagger(reg, 0);` |
+
+### Two-Qubit Gates
+
+| Function | Description | Example |
+| ---------- | ----------- | ------- |
+| `q_cnot(reg, control, target)` | Controlled-NOT (CNOT) | `q_cnot(reg, 0, 1);` |
+| `q_cy(reg, control, target)` | Controlled-Y (CY) | `q_cy(reg, 0, 1);` |
+| `q_cz(reg, control, target)` | Controlled-Z (CZ) | `q_cz(reg, 0, 1);` |
+| `q_cp(reg, control, target, theta)` | Controlled-Phase (CP) | `q_cp(reg, 0, 1, 3.14159);` |
+| `q_ch(reg, control, target)` | Controlled-Hadamard (CH) | `q_ch(reg, 0, 1);` |
+| `q_cs(reg, control, target)` | Controlled-Phase S (CS) | `q_cs(reg, 0, 1);` |
+| `q_ct(reg, control, target)` | Controlled-T (CT) | `q_ct(reg, 0, 1);` |
+| `q_crx(reg, control, target, theta)` | Controlled-RX (CRX) | `q_crx(reg, 0, 1, 3.14159);` |
+| `q_cry(reg, control, target, theta)` | Controlled-RY (CRY) | `q_cry(reg, 0, 1, 3.14159);` |
+| `q_crz(reg, control, target, theta)` | Controlled-RZ (CRZ) | `q_crz(reg, 0, 1, 3.14159);` |
+| `q_cu1(reg, control, target, lambda)` | Controlled-U1 (CU1) | `q_cu1(reg, 0, 1, 3.14159);` |
+| `q_swap(reg, q1, q2)` | SWAP | `q_swap(reg, 0, 1);` |
+| `q_iswap(reg, q1, q2)` | iSWAP | `q_iswap(reg, 0, 1);` |
+| `q_sqrt_cnot(reg, control, target)` | Square-root CNOT (√CNOT) | `q_sqrt_cnot(reg, 0, 1);` |
+| `q_rxx(reg, q1, q2, theta)` | RXX | `q_rxx(reg, 0, 1, 3.14159);` |
+| `q_ryy(reg, q1, q2, theta)` | RYY | `q_ryy(reg, 0, 1, 3.14159);` |
+| `q_rzz(reg, q1, q2, theta)` | RZZ | `q_rzz(reg, 0, 1, 3.14159);` |
+| `q_ecr(reg, q1, q2)` | ECR | `q_ecr(reg, 0, 1);` |
+| `q_cz_equiv(reg, control, target)` | CZ (alias) | `q_cz_equiv(reg, 0, 1);` |
+
+### Three-Qubit Gates
+
+| Function | Description | Example |
+| ---------- | ----------- | ------- |
+| `q_ccnot(reg, c1, c2, target)` | Toffoli (CCNOT) | `q_ccnot(reg, 0, 1, 2);` |
+| `q_fredkin(reg, control, t1, t2)` | Fredkin (CSWAP) | `q_fredkin(reg, 0, 1, 2);` |
+| `q_cch(reg, c1, c2, target)` | C-Hadamard (CCH) | `q_cch(reg, 0, 1, 2);` |
+| `q_ccz(reg, c1, c2, target)` | CCZ | `q_ccz(reg, 0, 1, 2);` |
+| `q_ccp(reg, c1, c2, target, theta)` | CCP | `q_ccp(reg, 0, 1, 2, 3.14159);` |
+| `q_toffoli(reg, c1, c2, target)` | Toffoli | `q_toffoli(reg, 0, 1, 2);` |
+
+### Advanced Measurements
+
+| Function | Description | Example |
+| ---------- | ----------- | ------- |
+| `q_measure_multiple(reg, qubits, n)` | Measure multiple qubits | `int* res = q_measure_multiple(reg, qubits, 3);` |
+| `q_measure_partial(reg, qubits, n)` | Get probabilities without collapsing | `qfloat* probs = q_measure_partial(reg, qubits, 3);` |
+| `q_measure_basis(reg, qubit, basis)` | Measure in basis X/Y/Z | `int result = q_measure_basis(reg, 0, 2);` |
+
+### Utilities
+
+| Function | Description | Example |
+| ---------- | ----------- | ------- |
+| `q_normalize(reg)` | Normalize state vector to unit norm | `q_normalize(reg);` |
+| `q_fidelity(reg1, reg2)` | Calculate fidelity between two states | `qfloat f = q_fidelity(reg1, reg2);` |
+| `q_partial_trace(reg, trace_q, n, remain_q, m)` | Compute partial trace probabilities (caller must free) | `qfloat* probs = q_partial_trace(reg, tq, 1, rq, 2); free(probs);` |
+| `q_copy(reg)` | Create a copy of a quantum register (caller must destroy_register) | `QuantumRegister* copy = q_copy(reg); destroy_register(copy);` |
+
+### Aliases (Lowercase)
+
+For compatibility, lowercase aliases are provided:
 
 ```c
-q_pauli_x(reg, 0); // Apply X to qubit 0
-q_pauli_y(reg, 0);
-q_pauli_z(reg, 0);
+#define q_i               q_identity
+#define q_swap_not        q_sqrt_x
+#define q_cswap           q_fredkin
+#define q_sqrt_cx         q_sqrt_cnot
+#define q_toffoli_gate    q_toffoli
+#define q_p               q_phase
+#define q_cz_equiv        q_cz
+#define q_toffoli         q_ccnot
 ```
 
-**Hadamard & Phase (S) & T:**
+### New Constants
 
 ```c
-q_hadamard(reg, 0);
-q_phase(reg, 0);
-q_t_gate(reg, 0);
+#define Q_0_25  0.25   // Quarter
+#define Q_0_75  0.75   // Three-quarters
+#define Q_E     2.71828182845904523536   // Euler's number
 ```
 
-**Rotation Gates (RX, RY, RZ):**
+---
 
-```c
-q_rx(reg, 0, 3.14159); // Radians
-q_ry(reg, 0, 3.14159/2.0);
-q_rz(reg, 0, 3.14159);
+## Gate Matrices
+
+### Single-Qubit Gate Matrices
+
+#### Identity (I)
+
+```text
+│ 1  0 │
+│ 0  1 │
 ```
 
-**Generic Gate (U3):**
+#### Pauli-X (X, NOT)
 
-```c
-// u3(theta, phi, lambda)
-q_u3(reg, 0, 3.14, 0.0, 1.57);
+```text
+│ 0  1 │
+│ 1  0 │
 ```
 
-### Multi-Qubit Gates
+#### Pauli-Y (Y)
 
-**Controlled NOT (CNOT) & Controlled Z (CZ):**
-
-```c
-q_cnot(reg, 0, 1); // Control: 0, Target: 1
-q_cz(reg, 0, 1);
+```text
+│ 0  -i │
+│ i   0 │
 ```
 
-**Swap Gate:**
+#### Pauli-Z (Z)
 
-```c
-q_swap(reg, 0, 1);
+```text
+│ 1   0 │
+│ 0  -1 │
 ```
 
-**Toffoli (CCNOT) Gate:**
+#### Hadamard (H)
 
-```c
-q_ccnot(reg, 0, 1, 2); // Controls: 0, 1; Target: 2
+```text
+│ 1/√2   1/√2 │
+│ 1/√2  -1/√2 │
 ```
+
+#### Phase (S)
+
+```text
+│ 1  0 │
+│ 0  i │
+```
+
+#### T Gate
+
+```text
+│ 1      0    │
+│ 0  e^(iπ/4) │
+```
+
+#### Rotation X (RX)
+
+```text
+│   cos(θ/2)   -i·sin(θ/2) │
+│ -i·sin(θ/2)    cos(θ/2)  │
+```
+
+#### Rotation Y (RY)
+
+```text
+│ cos(θ/2)  -sin(θ/2) │
+│ sin(θ/2)   cos(θ/2) │
+```
+
+#### Rotation Z (RZ)
+
+```text
+│ e^(-iθ/2)      0    │
+│     0      e^(iθ/2) │
+```
+
+#### U3 Gate
+
+```text
+│    cos(θ/2)        -e^(iλ)·sin(θ/2)  │
+│ e^(iφ)·sin(θ/2)  e^(i(φ+λ))·cos(θ/2) │
+```
+
+#### Square-root X (√X)
+
+```text
+│ (1+i)/2  (1-i)/2 │
+│ (1-i)/2  (1+i)/2 │
+```
+
+#### Square-root Z (√Z)
+
+```text
+│ 1      0    │
+│ 0  e^(iπ/4) │
+```
+
+#### U1 Gate
+
+```text
+│ 1     0   │
+│ 0  e^(iλ) │
+```
+
+#### U2 Gate
+
+```text
+│   1/√2         -e^(iλ)/√2  │
+│ e^(iφ)/√2    e^(i(φ+λ))/√2 │
+```
+
+#### Phase Gate (P)
+
+```text
+│ 1  0 │
+│ 0  i │
+```
+
+#### Phase Dagger (P†)
+
+```text
+│ 1   0 │
+│ 0  -i │
+```
+
+### Two-Qubit Gate Matrices
+
+#### CNOT (Controlled-NOT)
+
+```text
+│ 1  0  0  0 │
+│ 0  1  0  0 │
+│ 0  0  0  1 │
+│ 0  0  1  0 │
+```
+
+#### CY (Controlled-Y)
+
+```text
+│ 1  0  0   0 │
+│ 0  1  0   0 │
+│ 0  0  0  -i │
+│ 0  0  i   0 │
+```
+
+#### CZ (Controlled-Z)
+
+```text
+│ 1  0  0  0 │
+│ 0  1  0  0 │
+│ 0  0  1  0 │
+│ 0  0  0 -1 │
+```
+
+#### CP (Controlled-Phase)
+
+```text
+│ 1  0  0    0    │
+│ 0  1  0    0    │
+│ 0  0  1    0    │
+│ 0  0  0  e^(iθ) │
+```
+
+#### CH (Controlled-Hadamard)
+
+```text
+│ 1    0    0      0  │
+│ 0    1    0      0  │
+│ 0    0  1/√2   1/√2 │
+│ 0    0  1/√2  -1/√2 │
+```
+
+#### CS (Controlled-Phase S)
+
+```text
+│ 1  0  0  0 │
+│ 0  1  0  0 │
+│ 0  0  1  0 │
+│ 0  0  0  i │
+```
+
+#### CT (Controlled-T)
+
+```text
+│ 1  0  0      0    │
+│ 0  1  0      0    │
+│ 0  0  1      0    │
+│ 0  0  0  e^(iπ/4) │
+```
+
+#### CRX (Controlled-RX)
+
+```text
+│ 1  0       0           0      │
+│ 0  1       0           0      │
+│ 0  0    cos(θ/2)  -i·sin(θ/2) │
+│ 0  0  -i·sin(θ/2)   cos(θ/2)  │
+```
+
+#### CRY (Controlled-RY)
+
+```text
+│ 1  0     0          0     │
+│ 0  1     0          0     │
+│ 0  0  cos(θ/2)  -sin(θ/2) │
+│ 0  0  sin(θ/2)   cos(θ/2) │
+```
+
+#### CRZ (Controlled-RZ)
+
+```text
+│ 1  0      0          0    │
+│ 0  1      0          0    │
+│ 0  0  e^(-iθ/2)      0    │
+│ 0  0      0      e^(iθ/2) │
+```
+
+#### CU1 (Controlled-U1)
+
+```text
+│ 1  0  0    0    │
+│ 0  1  0    0    │
+│ 0  0  1    0    │
+│ 0  0  0  e^(iλ) │
+```
+
+#### SWAP
+
+```text
+│ 1  0  0  0 │
+│ 0  0  1  0 │
+│ 0  1  0  0 │
+│ 0  0  0  1 │
+```
+
+#### iSWAP
+
+```text
+│ 1  0   0  0 │
+│ 0  0   i  0 │
+│ 0  i   0  0 │
+│ 0  0   0  1 │
+```
+
+#### √CNOT (Square-root CNOT)
+
+```text
+│ 1  0     0        0    │
+│ 0  1     0        0    2│
+│ 0  0  (1+i)/2  (1-i)/2 │
+│ 0  0  (1-i)/2  (1+i)/2 │
+```
+
+#### RXX
+
+```text
+│   cos(θ/2)        0            0       -i·sin(θ/2) │
+│      0         cos(θ/2)    i·sin(θ/2)       0      │
+│      0        i·sin(θ/2)    cos(θ/2)        0      │
+│ -i·sin(θ/2)       0            0         cos(θ/2)  │
+```
+
+#### RYY
+
+```text
+│  cos(θ/2)       0           0        i·sin(θ/2) │
+│    0         cos(θ/2)   -i·sin(θ/2)       0     │
+│    0        -i·sin(θ/2)   cos(θ/2)        0     │
+│ i·sin(θ/2)      0           0         cos(θ/2)  │
+```
+
+#### RZZ
+
+```text
+│ e^(-iθ/2)    0        0         0     │
+│    0      e^(iθ/2)    0         0     │
+│    0         0     e^(iθ/2)     0     │
+│    0         0        0     e^(-iθ/2) │
+```
+
+#### ECR
+
+```text
+│ 0  0  0  1 │
+│ 0  0  1  0 │
+│ 0 -1  0  0 │
+│ 1  0  0  0 │
+```
+
+### Three-Qubit Gate Matrices
+
+#### CCNOT (Toffoli)
+
+```text
+│ 1  0  0  0  0  0  0  0 │
+│ 0  1  0  0  0  0  0  0 │
+│ 0  0  1  0  0  0  0  0 │
+│ 0  0  0  1  0  0  0  0 │
+│ 0  0  0  0  1  0  0  0 │
+│ 0  0  0  0  0  1  0  0 │
+│ 0  0  0  0  0  0  0  1 │
+│ 0  0  0  0  0  0  1  0 │
+```
+
+Intercambia los estados |111⟩ y |110⟩
+
+#### Fredkin (CSWAP)
+
+```text
+│ 1  0  0  0  0  0  0  0 │
+│ 0  1  0  0  0  0  0  0 │
+│ 0  0  1  0  0  0  0  0 │
+│ 0  0  0  1  0  0  0  0 │
+│ 0  0  0  0  1  0  0  0 │
+│ 0  0  0  0  0  0  1  0 │
+│ 0  0  0  0  0  1  0  0 │
+│ 0  0  0  0  0  0  0  1 │
+```
+
+Intercambia los qubits objetivo cuando el control es 1
+
+#### CCH (Controlled-Hadamard)
+
+```text
+│ 1  0  0  0  0  0    0    0   │
+│ 0  1  0  0  0  0    0    0   │
+│ 0  0  1  0  0  0    0    0   │
+│ 0  0  0  1  0  0    0    0   │
+│ 0  0  0  0  1  0    0    0   │
+│ 0  0  0  0  0  1    0    0   │
+│ 0  0  0  0  0  0  1/√2  1/√2 │
+│ 0  0  0  0  0  0  1/√2 -1/√2 │
+```
+
+#### CCZ
+
+```text
+│ 1  0  0  0  0  0  0  0 │
+│ 0  1  0  0  0  0  0  0 │
+│ 0  0  1  0  0  0  0  0 │
+│ 0  0  0  1  0  0  0  0 │
+│ 0  0  0  0  1  0  0  0 │
+│ 0  0  0  0  0  1  0  0 │
+│ 0  0  0  0  0  0  1  0 │
+│ 0  0  0  0  0  0  0 -1 │
+```
+
+Aplica fase -1 al estado |111⟩
+
+#### CCP (Controlled-Phase)
+
+```text
+│ 1  0  0  0  0  0  0   0    │
+│ 0  1  0  0  0  0  0   0    │
+│ 0  0  1  0  0  0  0   0    │
+│ 0  0  0  1  0  0  0   0    │
+│ 0  0  0  0  1  0  0   0    │
+│ 0  0  0  0  0  1  0   0    │
+│ 0  0  0  0  0  0  1   0    │
+│ 0  0  0  0  0  0  0 e^(iθ) │
+```
+
+Aplica fase e^(iθ) al estado |111⟩
 
 ---
 
